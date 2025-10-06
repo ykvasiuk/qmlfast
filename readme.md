@@ -53,7 +53,7 @@ To estimate the full-sky power spectrum, user passes an array of stacked `Healpi
 ```python
 obs = np.stack([map1_unmasked_pixels_only,
                  map2_unmasked_pixels_only, ...])               # order of stacking should be that same as the pixel covariance matrix
-y = get_y(x, Y_r_all,Cinv,F_idx,Nf,Np)                          # 'y' aren't the estimates yet 
+y = get_y(obs, Y_r_all,Cinv,F_idx,Nf,Np)                          # 'y' aren't the estimates yet 
 e = np.linalg.solve(F,y)                               # solved 'e''s are the power spectrum estimates, the order of 'e' follows that in F_idx
 ```
 See [`example.ipynb`](example.ipynb) for more details.
