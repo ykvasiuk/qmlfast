@@ -1,12 +1,12 @@
 # qmlfast
-A fast and efficient implementation of the multi-field [QML](https://arxiv.org/abs/astro-ph/0012120) estimator. A minimalistic example of the main code functionality is in example.ipynb. To configure the environment:
+A fast and efficient implementation of the multi-field [QML](https://arxiv.org/abs/astro-ph/0012120) estimator. A minimalistic example of the main code functionality is in [example.ipynb](example.ipynb). To configure the environment:
 
 ```bash
 conda env create -f env.yml -n qmlenv
 ```
 
 ## Credits
-The theoretical foundations of the code is based on [arxiv:astro-ph/9611174](https://arxiv.org/abs/astro-ph/9611174) and implemented according to [arxiv to our qml paper]. Python librabries [numba](https://numba.pydata.org/) and [opt_einsum](https://optimized-einsum.readthedocs.io/en/stable/) are used for optimization. This code is designed to interact with 2-dimensional field in [Healpix](https://healpix.sourceforge.io/) projection. Works that involves the usage of the code should cite [arxiv to our qml paper] for reference.
+The theoretical foundations of the code is based on [arxiv:astro-ph/9611174](https://arxiv.org/abs/astro-ph/9611174) and implemented according to [arxiv to our qml paper]. Python librabries [numba](https://numba.pydata.org/) and [opt_einsum](https://optimized-einsum.readthedocs.io/en/stable/) are used for optimization. This code is designed to interact with 2-dimensional field in [Healpix](https://healpix.sourceforge.io/) projection. Works that involve the usage of the code should cite [arxiv to our qml paper] for reference.
 
 ## Basic Usage
 ### Prepare the Input
@@ -37,7 +37,7 @@ phi = phi[mask==1]
 # getting transfomation matrix between Ylm's and pixels                
 Y_r_all = sph_harm_y_real_all(lmax,theta,phi)     
 ```
-Users are also required to construct the inverse pixel-space covariance matrix `Cinv` and the block map `C_map` for thier fiducial powers. 
+Users are also required to construct the inverse pixel-space covariance matrix `Cinv` and the block map `C_map` for their fiducial powers. 
 
 ### Fisher Matrix Calculation
 To compute the Fisher matrix, run the following:
@@ -56,4 +56,4 @@ obs = np.stack([map1_unmasked_pixels_only,
 y = get_y(x, Y_r_all,Cinv,F_idx,Nf,Np)                          # 'y' aren't the estimates yet 
 e = np.linalg.solve(F,y)                               # solved 'e''s are the power spectrum estimates, the order of 'e' follows that in F_idx
 ```
-See `example.ipynb` for more details.
+See [`example.ipynb`](example.ipynb) for more details.
