@@ -6,7 +6,7 @@ conda env create -f env.yml -n qmlenv
 ```
 
 ## Credits
-The theoretical foundations of the code is based on [arxiv:astro-ph/9611174](https://arxiv.org/abs/astro-ph/9611174) and implemented according to [arxiv to our qml paper]. Python librabries [numba](https://numba.pydata.org/) and [opt_einsum](https://optimized-einsum.readthedocs.io/en/stable/) are used for optimization. This code is designed to interact with 2-dimensional field in [Healpix](https://healpix.sourceforge.io/) projection. Works that involve the usage of the code should cite [arxiv to our qml paper] for reference.
+The theoretical foundations of the code is based on [arxiv:astro-ph/9611174](https://arxiv.org/abs/astro-ph/9611174) and implemented according to  [2510.05215](https://arxiv.org/abs/2510.05215). Python librabries [numba](https://numba.pydata.org/) and [opt_einsum](https://optimized-einsum.readthedocs.io/en/stable/) are used for optimization. This code is designed to interact with 2-dimensional field in [Healpix](https://healpix.sourceforge.io/) projection. Works that involve the usage of the code should cite [2510.05215](https://arxiv.org/abs/2510.05215) for reference.
 
 ## Basic Usage
 ### Prepare the Input
