@@ -99,11 +99,15 @@ This is used for band-power Fisher matrices where the binned basis $P_b = \sum_\
 
 ## Examples
 
+All example notebooks use noise-bias subtraction (paper Eq. 9): signal is drawn band-limited via `synalm(S)` and white pixel noise is added separately, so the fiducial covariance equals the true data covariance ($\mathrm{Cov}(\hat y) = F$ exactly).
+
 | Notebook | Description |
 |----------|-------------|
-| [example.ipynb](example.ipynb) | Full 3-field QML pipeline: Fisher matrix, MC simulations, power spectrum estimates |
-| [bandpower_explore.ipynb](bandpower_explore.ipynb) | Band-power Fisher: eigendecomposition, truncation, direct trace vs packed comparison |
-| [bandpower_2field.ipynb](bandpower_2field.ipynb) | Binned estimator with 2 fields and uneven bins: eq. 24 vs direct binned, $F_b = S^T F_\ell S$ |
+| [example.ipynb](example.ipynb) | Full 3-field QML pipeline with mode deprojection, noise-bias subtraction, MC validation against $F^{-1}$ |
+| [bandpower_1field.ipynb](bandpower_1field.ipynb) | 1-field binned estimator: posthoc (Eq. 24) and direct binned routes, both consistent with $F_b^{-1}$ |
+| [bandpower_2field.ipynb](bandpower_2field.ipynb) | 2-field binned estimator: posthoc + direct binned for auto and cross spectra |
+| [noise_mismatch_demo.ipynb](noise_mismatch_demo.ipynb) | Per-$\ell$ illustration of the mismodeling effect (Appendix A): empirical $\mathrm{Cov}$ matches $\tilde F^{-1}G\tilde F^{-1}$, not $\tilde F^{-1}$, when the noise model is mismatched |
+| [noise_mismatch_demo_binned.ipynb](noise_mismatch_demo_binned.ipynb) | Same as above but with posthoc binning, on a small mask where per-$\ell$ inversion fails |
 
 ## Credits
 
