@@ -1,19 +1,50 @@
 import numpy as np
+import numpy.typing as npt
 import healpy as hp
-from scipy.special import sph_harm_y, legendre_p_all
+from scipy.special import sph_harm_y
+from tqdm import tqdm
 
-def sph_harm_y_real_all(lmax, theta, phi):
+FloatArray = npt.NDArray[np.float64]
+
+
+def sph_harm_y_real_all(
+    lmax: int,
+    theta: npt.ArrayLike,
+    phi: npt.ArrayLike,
+    progress: bool = True,
+    desc: str = 'Y_lm',
+) -> FloatArray:
     """
-    Returns real-valued spherical harmonics Y_lm^real for all l < lmax and -l <= m <= l,
-    evaluated at (theta, phi). Output shape is (lmax+1, 2lmax+1, *theta.shape)
-    with m index shifted to [0, 2lmax] where m = -l,...,l.
+    Evaluate real spherical harmonics on a set of angular coordinates.
+
+    Parameters
+    ----------
+    lmax
+        Number of multipoles to compute. The output contains ``ell = 0`` through
+        ``ell = lmax - 1``.
+    theta
+        Array-like polar angles in radians. Shape ``pixel_shape``.
+    phi
+        Array-like azimuthal angles in radians. Must be broadcast-compatible
+        with ``theta`` and is typically the same shape.
+    progress
+        If ``True``, show a progress bar over multipoles.
+    desc
+        Progress-bar label.
+
+    Returns
+    -------
+    ndarray of float64
+        Real harmonic values with shape ``(lmax, 2 * lmax - 1, *pixel_shape)``.
+        For multipole ``ell``, active ``m`` values are stored at indices
+        ``ell + m`` for ``-ell <= m <= ell``. Inactive entries are zero.
     """
     theta = np.asarray(theta)
     phi = np.asarray(phi)
     shape = theta.shape
     out = np.zeros((lmax, 2*lmax-1) + shape, dtype=np.float64)
     ### TODO: rewrite vectorized to make it faster
-    for l in range(lmax):
+    for l in tqdm(range(lmax), desc=desc, disable=not progress):
         for m in range(0, l+1):
             ylm = sph_harm_y(l, m, theta, phi)
 
@@ -24,28 +55,71 @@ def sph_harm_y_real_all(lmax, theta, phi):
                 out[l, l - m] = np.sqrt(2) * ylm.imag  # sin(mφ)
     return out
 
-def get_Pl_ij(theta,phi,nside,lmax=None):
-    cos_gamma = cosine_angle_matrix(theta,phi)
+def get_Pl_ij(
+    theta: npt.ArrayLike,
+    phi: npt.ArrayLike,
+    nside: int,
+    lmax: int | None = None,
+) -> FloatArray:
+    """
+    Compute pixel-space Legendre kernels for all multipoles up to ``lmax``.
+
+    Parameters
+    ----------
+    theta
+        Array-like polar angles in radians with shape ``(Np,)``.
+    phi
+        Array-like azimuthal angles in radians with shape ``(Np,)``.
+    nside
+        HEALPix ``nside``. Used only to choose the default ``lmax``.
+    lmax
+        Maximum multipole to include. If omitted, uses ``3 * nside - 1``.
+
+    Returns
+    -------
+    ndarray of float64, shape (lmax + 1, Np, Np)
+        Kernels ``(2 ell + 1) P_ell(cos gamma_ij) / (4 pi)``.
+    """
+    cos_gamma = cosine_angle_matrix(theta, phi)
     if lmax is None:
-        lmax=3*nside-1
-    Pl_ij = legendre_p_all(lmax, cos_gamma)[0]*(2*np.arange(lmax+1)+1)[:,None,None]/4/np.pi
+        lmax = 3 * nside - 1
+
+    Pl_ij = np.empty((lmax + 1, cos_gamma.shape[0], cos_gamma.shape[1]),
+                     dtype=np.float64)
+    Plm2 = np.ones_like(cos_gamma)
+
+    for ell in tqdm(range(lmax + 1), desc='Pl_ij'):
+        if ell == 0:
+            P_ell = Plm2
+        elif ell == 1:
+            P_ell = cos_gamma.copy()
+            Plm1 = P_ell
+        else:
+            P_ell = ((2 * ell - 1) * cos_gamma * Plm1 - (ell - 1) * Plm2) / ell
+            Plm2, Plm1 = Plm1, P_ell
+
+        Pl_ij[ell] = (2 * ell + 1) * P_ell / (4 * np.pi)
+
     return Pl_ij
     
-def cosine_angle_matrix(theta, phi):
+def cosine_angle_matrix(theta: npt.ArrayLike, phi: npt.ArrayLike) -> FloatArray:
     """
-    Compute matrix of cos(gamma_ij) between points (theta_i, phi_i) and (theta_j, phi_j)
-    on the unit sphere.
+    Compute pairwise angular cosines for points on the unit sphere.
 
-    Parameters:
-        theta : ndarray, shape (N,)
-            Polar angles (colatitude, from 0 to pi)
-        phi : ndarray, shape (N,)
-            Azimuthal angles (longitude, from 0 to 2pi)
+    Parameters
+    ----------
+    theta
+        Array-like polar angles in radians with shape ``(Np,)``.
+    phi
+        Array-like azimuthal angles in radians with shape ``(Np,)``.
 
-    Returns:
-        cos_gamma : ndarray, shape (N, N)
-            Matrix of cosines of angles between all pairs.
+    Returns
+    -------
+    ndarray of float64, shape (Np, Np)
+        Matrix whose ``(i, j)`` entry is ``cos(gamma_ij)``.
     """
+    theta = np.asarray(theta)
+    phi = np.asarray(phi)
     theta = theta[:, None]  # (N,1)
     phi = phi[:, None]      # (N,1)
 
@@ -58,45 +132,131 @@ def cosine_angle_matrix(theta, phi):
 
     return cos_gamma
 
-def theta_phi(nside):
+def theta_phi(nside: int) -> tuple[FloatArray, FloatArray]:
+    """
+    Return HEALPix pixel-center angular coordinates.
+
+    Parameters
+    ----------
+    nside
+        HEALPix ``nside`` parameter.
+
+    Returns
+    -------
+    theta
+        Float array of shape ``(12 * nside**2,)`` with polar angles in radians.
+    phi
+        Float array of shape ``(12 * nside**2,)`` with azimuthal angles in
+        radians.
+    """
     pix_idxs = np.arange(hp.nside2npix(nside))
     theta, phi = hp.pix2ang(nside, pix_idxs)
     return theta, phi
 
 
-def construct_Z_and_pi(theta, phi, lmax, ell0):
+def low_ell_mode_matrix(theta: npt.ArrayLike, phi: npt.ArrayLike, ell0: int) -> FloatArray:
     """
-    Given arrays theta, phi of length n_pix (or shape e.g. (Nx,Ny) flattened below),
-    and a real-sph-harm function sph_harm_y_real_all(lmax,theta,phi) returning an array
-    of shape (lmax+1, 2*lmax+1, *theta.shape), this returns:
+    Build raw low-ell real spherical-harmonic mode columns.
 
-      Z  : (n_pix, ell0**2) matrix with Z.T @ Z = I
-      pi : (n_pix, n_pix) projector that kills all modes ell<ell0
+    Parameters
+    ----------
+    theta
+        Array-like polar angles in radians with shape ``(Np,)``.
+    phi
+        Array-like azimuthal angles in radians with shape ``(Np,)``.
+    ell0
+        Deproject all modes with ``ell < ell0``.
 
-    Assumes trivial weighting (i.e. pixel–space inner product is just sum over pixels).
+    Returns
+    -------
+    ndarray of float64, shape (Np, ell0**2)
+        Matrix with one non-orthogonal real spherical-harmonic column per
+        ``(ell, m)`` mode for ``ell < ell0``.
     """
-    # 1) evaluate all real harmonics up to lmax
-    Yall = sph_harm_y_real_all(lmax, theta, phi)
-    # flatten pixel dims
+    Yall = sph_harm_y_real_all(ell0, theta, phi)
+    npix = np.asarray(theta).size
+
+    cols = []
+    for ell in range(ell0):
+        for m in range(-ell, ell + 1):
+            cols.append(Yall[ell, ell + m].reshape(npix))
+    return np.vstack(cols).T
+
+
+def deproject_inverse_woodbury(Cinv: FloatArray, Z: FloatArray) -> FloatArray:
+    """
+    Project modes out of an inverse covariance using the Woodbury limit.
+
+    Parameters
+    ----------
+    Cinv
+        Float array of shape ``(N, N)``. Inverse covariance before
+        deprojection.
+    Z
+        Float array of shape ``(N, n_modes)``. Columns span the modes to
+        deproject. Columns need not be orthonormal.
+
+    Returns
+    -------
+    ndarray of float64, shape (N, N)
+        Symmetrized inverse covariance with the column space of ``Z`` projected
+        out:
+        ``Cinv - Cinv @ Z @ inv(Z.T @ Cinv @ Z) @ Z.T @ Cinv``.
+    """
+    CinvZ = Cinv @ Z
+    gram = Z.T @ CinvZ
+    projected = Cinv - CinvZ @ np.linalg.solve(gram, CinvZ.T)
+    return 0.5 * (projected + projected.T)
+
+
+def construct_Z_and_pi(
+    theta: npt.ArrayLike,
+    phi: npt.ArrayLike,
+    lmax: int,
+    ell0: int,
+) -> tuple[FloatArray, FloatArray]:
+    """
+    Construct orthonormal low-ell modes and their pixel-space projector.
+
+    Parameters
+    ----------
+    theta
+        Array-like polar angles in radians with shape ``(Np,)``.
+    phi
+        Array-like azimuthal angles in radians with shape ``(Np,)``.
+    lmax
+        Kept for backward-compatible call signatures. The current
+        implementation only needs ``ell0`` because it constructs modes
+        ``ell < ell0``.
+    ell0
+        Project out all real spherical-harmonic modes with ``ell < ell0``.
+
+    Returns
+    -------
+    Z
+        Float array of shape ``(Np, ell0**2)``. Orthonormal columns spanning
+        the low-ell mode subspace.
+    pi
+        Float array of shape ``(Np, Np)``. Orthogonal projector
+        ``I - Z @ Z.T``.
+
+    Notes
+    -----
+    The orthonormalization uses the unweighted Euclidean pixel-space inner
+    product.
+    """
     theta = np.asarray(theta)
     npix = theta.size
 
-    # 2) build Y_small for ell=0,...,ell0-1 and m=-ell...+ell
-    cols = []
-    for ell in range(ell0):
-        for m in range(-ell, ell+1):
-            # m-shifted index = ell + m
-            Y_ell_m = Yall[ell, ell + m].reshape(npix)
-            cols.append(Y_ell_m)
-    # stack into shape (npix, ell0**2)
-    Y_small = np.vstack(cols).T
+    # 1) build raw real harmonics for ell=0,...,ell0-1 and m=-ell...+ell
+    Y_small = low_ell_mode_matrix(theta, phi, ell0)
 
-    # 3) orthonormalize columns of Y_small via reduced QR
+    # 2) orthonormalize columns of Y_small via reduced QR
     #    Q has shape (npix, ell0**2) with Q.T @ Q = I
     Q, R = np.linalg.qr(Y_small, mode='reduced')
     Z = Q
 
-    # 4) build projector Pi = I - Z Z^T
+    # 3) build projector Pi = I - Z Z^T
     pi = np.eye(npix) - Z @ Z.T
 
     return Z, pi     
