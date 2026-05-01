@@ -1,5 +1,6 @@
 # qmlfast
 
+A fast and memory-efficient implementation of the multi-field [QML](https://arxiv.org/abs/2510.05215) (Quadratic Maximum Likelihood) power spectrum estimator for correlated scalar fields on the sphere. See [example.ipynb](example.ipynb) for a full working example.
 
 ```bash
 conda env create -f env.yml -n qmlenv
